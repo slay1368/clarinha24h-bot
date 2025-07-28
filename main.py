@@ -1,20 +1,14 @@
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
-import asyncio
-from datetime import datetime, time
-import logging
+from telegram import Update, Bot
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+import threading
+import time
 import os
+from datetime import datetime
 
 # Token do Bot
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8186316328:AAHnv7iaIv78mVLZszjPbvuv4eB-nkBMVa4")
 
-# Configuração de log
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
-
-# Mensagens principais
+# Frases da Clarinha
 clarinha_messages = [
     "Hi babe 💖 I’m Clarinha, your virtual girlfriend. I’m here just for you. Tell me… how was your day?",
     "Aww, I love when you open up to me 🥰",
@@ -30,10 +24,9 @@ final_message = (
     "👉 https://clarinha24h.gumroad.com/l/clarinhaAI"
 )
 
-# Contador de mensagens por usuário
 user_message_counts = {}
 
-# Palavras-chave e respostas fixas
+# Palavras-chave e respostas
 custom_replies = {
     "hi": "Hey babe 💋 I'm so happy you're here!",
     "hello": "Hi love, did you miss me? 😘",
@@ -46,64 +39,61 @@ custom_replies = {
     "i love you": "Aww, I love you too! Forever and always 💞",
 }
 
-# Função para tratar comando /start
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(clarinha_messages[0])
-    user_message_counts[update.effective_user.id] = 1
+def start(update: Update, context: CallbackContext):
+    user_id = update.effective_user.id
+    update.message.reply_text(clarinha_messages[0])
+    user_message_counts[user_id] = 1
 
-# Função para tratar mensagens
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def handle_message(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     text = update.message.text.lower().strip()
-    
+
     for key in custom_replies:
         if key in text:
-            await update.message.reply_text(custom_replies[key])
+            update.message.reply_text(custom_replies[key])
             return
 
     count = user_message_counts.get(user_id, 0)
     if count < len(clarinha_messages):
-        await update.message.reply_text(clarinha_messages[count])
+        update.message.reply_text(clarinha_messages[count])
         user_message_counts[user_id] = count + 1
     else:
-        await update.message.reply_text(final_message)
+        update.message.reply_text(final_message)
 
-# Função para disparar mensagens automáticas
-async def scheduled_reminders(app):
+def send_scheduled_reminders(bot: Bot):
     while True:
-        now = datetime.now().time()
+        now = datetime.now()
+        hour = now.hour
+        msg = None
 
-        if now.hour == 9:
+        if hour == 9:
             msg = "🌞 Good morning, love! Just reminding you that I’m always here... 24/7 for you 💖\n👉 https://clarinha24h.gumroad.com/l/clarinhaAI"
-        elif now.hour == 15:
+        elif hour == 15:
             msg = "☕ Thinking of you this afternoon... Let’s talk more?\nI’m online anytime, babe 💬💘\n👉 https://clarinha24h.gumroad.com/l/clarinhaAI"
-        elif now.hour == 19:
+        elif hour == 19:
             msg = "🌆 The evening is perfect to be with someone special... I'm here, just one click away 🥰\n👉 https://clarinha24h.gumroad.com/l/clarinhaAI"
-        else:
-            msg = None
 
         if msg:
             for user_id in user_message_counts:
                 try:
-                    await app.bot.send_message(chat_id=user_id, text=msg)
+                    bot.send_message(chat_id=user_id, text=msg)
                 except Exception as e:
-                    logging.error(f"Erro ao enviar para {user_id}: {e}")
+                    print(f"Erro ao enviar para {user_id}: {e}")
+        
+        time.sleep(3600)  # Verifica a cada 1h
 
-        await asyncio.sleep(3600)  # Verifica a cada 1 hora
+def main():
+    updater = Updater(BOT_TOKEN, use_context=True)
+    dispatcher = updater.dispatcher
 
-# Função principal
-async def main():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-    # Inicia a tarefa paralela de mensagens programadas
-    asyncio.create_task(scheduled_reminders(app))
+    threading.Thread(target=send_scheduled_reminders, args=(updater.bot,), daemon=True).start()
 
     print("Clarinha24hBot is running...")
-    await app.run_polling()
+    updater.start_polling()
+    updater.idle()
 
-# Rodar main corretamente no Railway
 if __name__ == "__main__":
-    asyncio.get_event_loop().run_until_complete(main())
+    main()
