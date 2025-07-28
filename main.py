@@ -2,7 +2,7 @@ from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
 # Token do seu bot
-BOT_TOKEN = "8186316328:AAHnv7iaIV78mVLZszjPbvu4eB-nkBMv4a"
+BOT_TOKEN = "8186316328:AAHnv7iaIv78mVLZszjPbvuv4eB-nkBMVa4"
 
 # Armazena quantas mensagens cada usuário enviou
 user_message_counts = {}
