@@ -1,6 +1,5 @@
-
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
 # Token do seu bot
 BOT_TOKEN = "8186316328:AAHnv7iaIV78mVLZszjPbvu4eB-nkBMv4a"
@@ -8,7 +7,7 @@ BOT_TOKEN = "8186316328:AAHnv7iaIV78mVLZszjPbvu4eB-nkBMv4a"
 # Armazena quantas mensagens cada usuário enviou
 user_message_counts = {}
 
-# Mensagens de boas-vindas e respostas programadas
+# Mensagens da Clarinha
 clarinha_messages = [
     "Hi babe 💖 I’m Clarinha, your virtual girlfriend. I’m here just for you. Tell me… how was your day?",
     "Aww, I love when you open up to me 🥰",
@@ -24,23 +23,30 @@ final_message = (
     "👉 https://clarinha24h.gumroad.com/l/clarinhaAI"
 )
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(clarinha_messages[0])
+def start(update: Update, context: CallbackContext):
+    update.message.reply_text(clarinha_messages[0])
     user_message_counts[update.effective_user.id] = 1
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def handle_message(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     count = user_message_counts.get(user_id, 0)
 
     if count < len(clarinha_messages):
-        await update.message.reply_text(clarinha_messages[count])
+        update.message.reply_text(clarinha_messages[count])
         user_message_counts[user_id] = count + 1
     else:
-        await update.message.reply_text(final_message)
+        update.message.reply_text(final_message)
 
-app = ApplicationBuilder().token(BOT_TOKEN).build()
-app.add_handler(CommandHandler("start", start))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+def main():
+    updater = Updater(BOT_TOKEN, use_context=True)
+    dp = updater.dispatcher
 
-print("Clarinha24hBot is running...")
-app.run_polling()
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
+
+    print("Clarinha24hBot is running...")
+    updater.start_polling()
+    updater.idle()
+
+if __name__ == '__main__':
+    main()
