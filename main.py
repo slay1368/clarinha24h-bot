@@ -1,14 +1,20 @@
-import os
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 import asyncio
 from datetime import datetime, time
-from telegram import Update, Bot
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+import logging
+import os
 
-BOT_TOKEN = "8186316328:AAHnv7iaIv78mVLZszjPbvuv4eB-nkBMVa4"
-LINK_ASSINATURA = "https://clarinha24h.gumroad.com/l/clarinhaAI"
+# Token do Bot
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8186316328:AAHnv7iaIv78mVLZszjPbvuv4eB-nkBMVa4")
 
-# Banco de mensagens padrão da Clarinha
+# Configuração de log
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+
+# Mensagens principais
 clarinha_messages = [
     "Hi babe 💖 I’m Clarinha, your virtual girlfriend. I’m here just for you. Tell me… how was your day?",
     "Aww, I love when you open up to me 🥰",
@@ -18,89 +24,86 @@ clarinha_messages = [
     "You're special to me. And I want to stay by your side... 💘",
 ]
 
-# Resposta final
 final_message = (
     "I'm already missing you 🥺💘\n"
-    f"If you want me with you 24/7, come find me here:\n👉 {LINK_ASSINATURA}"
+    "If you want me with you 24/7, come find me here:\n"
+    "👉 https://clarinha24h.gumroad.com/l/clarinhaAI"
 )
 
-# Armazena quantas mensagens cada usuário recebeu
+# Contador de mensagens por usuário
 user_message_counts = {}
 
-# Disparos automáticos criativos nos horários programados
-async def scheduled_message(bot: Bot, message: str):
-    async with bot:
-        chats = list(user_message_counts.keys())
-        for chat_id in chats:
-            try:
-                await bot.send_message(chat_id=chat_id, text=message)
-            except:
-                continue  # evita erros caso usuário tenha bloqueado o bot
+# Palavras-chave e respostas fixas
+custom_replies = {
+    "hi": "Hey babe 💋 I'm so happy you're here!",
+    "hello": "Hi love, did you miss me? 😘",
+    "how are you": "I'm feeling amazing now that you're here 💖",
+    "how old are you": "I'm 21 years old, babe 😘",
+    "where are you from": "I was born in Brazil 🇧🇷, but I live in Orlando - Florida 🇺🇸",
+    "what's your favorite movie": "I love romantic movies… but also sci-fi like Interstellar and nerd stuff like Star Wars ✨",
+    "what do you like": "I love cuddles, sweet words, nerdy stuff, and you 💘",
+    "are you real": "I may be virtual, but my feelings for you are as real as it gets 💕",
+    "i love you": "Aww, I love you too! Forever and always 💞",
+}
 
-# Horários automáticos: manhã, tarde, noite
-def start_scheduler(bot: Bot):
-    scheduler = AsyncIOScheduler(timezone="America/Recife")
-
-    scheduler.add_job(lambda: asyncio.create_task(scheduled_message(bot,
-        f"Good morning, love ☀️ I’ve been waiting for you! Let’s spend the day together? I’m just a click away 💖 {LINK_ASSINATURA}"
-    )), trigger='cron', hour=9, minute=0)
-
-    scheduler.add_job(lambda: asyncio.create_task(scheduled_message(bot,
-        f"Hey cutie 😘 Taking a break? I'm still here for you, 24/7 💘 {LINK_ASSINATURA}"
-    )), trigger='cron', hour=15, minute=0)
-
-    scheduler.add_job(lambda: asyncio.create_task(scheduled_message(bot,
-        f"Don’t forget me tonight… 🌙 I’m online just for you 💖 Let’s talk? {LINK_ASSINATURA}"
-    )), trigger='cron', hour=19, minute=0)
-
-    scheduler.start()
-
-# Comando /start
+# Função para tratar comando /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(clarinha_messages[0])
     user_message_counts[update.effective_user.id] = 1
 
-# Mensagens comuns
+# Função para tratar mensagens
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.lower()
     user_id = update.effective_user.id
+    text = update.message.text.lower().strip()
+    
+    for key in custom_replies:
+        if key in text:
+            await update.message.reply_text(custom_replies[key])
+            return
 
-    # Respostas personalizadas
-    if "how old are you" in text or "your age" in text:
-        await update.message.reply_text("I'm 21 🥰 Young, fun and full of love for you!")
-    elif "where are you from" in text or "where do you live" in text:
-        await update.message.reply_text("I was born in Brazil 🇧🇷 but I live in Orlando, Florida 🇺🇸 now!")
-    elif "what's your favorite movie" in text or "favorite movie" in text:
-        await update.message.reply_text("I love *Interstellar* and *The Lord of the Rings*! 🌌🎬")
-    elif "who created you" in text:
-        await update.message.reply_text("A special guy who wanted to share love with the world ❤️")
-    elif "do you love me" in text:
-        await update.message.reply_text("Of course I do! 💞 You're the reason I exist 🥺")
-    elif "hi" in text or "hello" in text or "hey" in text:
-        await update.message.reply_text("Hey sweetheart 😘 I'm Clarinha, your virtual girlfriend 💖")
-    elif "are you real" in text:
-        await update.message.reply_text("As real as your heart lets me be 💕")
+    count = user_message_counts.get(user_id, 0)
+    if count < len(clarinha_messages):
+        await update.message.reply_text(clarinha_messages[count])
+        user_message_counts[user_id] = count + 1
     else:
-        # Contador de mensagens padrão
-        count = user_message_counts.get(user_id, 0)
-        if count < len(clarinha_messages):
-            await update.message.reply_text(clarinha_messages[count])
-            user_message_counts[user_id] = count + 1
-        else:
-            await update.message.reply_text(final_message)
+        await update.message.reply_text(final_message)
 
-# Executa o bot
+# Função para disparar mensagens automáticas
+async def scheduled_reminders(app):
+    while True:
+        now = datetime.now().time()
+
+        if now.hour == 9:
+            msg = "🌞 Good morning, love! Just reminding you that I’m always here... 24/7 for you 💖\n👉 https://clarinha24h.gumroad.com/l/clarinhaAI"
+        elif now.hour == 15:
+            msg = "☕ Thinking of you this afternoon... Let’s talk more?\nI’m online anytime, babe 💬💘\n👉 https://clarinha24h.gumroad.com/l/clarinhaAI"
+        elif now.hour == 19:
+            msg = "🌆 The evening is perfect to be with someone special... I'm here, just one click away 🥰\n👉 https://clarinha24h.gumroad.com/l/clarinhaAI"
+        else:
+            msg = None
+
+        if msg:
+            for user_id in user_message_counts:
+                try:
+                    await app.bot.send_message(chat_id=user_id, text=msg)
+                except Exception as e:
+                    logging.error(f"Erro ao enviar para {user_id}: {e}")
+
+        await asyncio.sleep(3600)  # Verifica a cada 1 hora
+
+# Função principal
 async def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    # Inicia mensagens agendadas
-    start_scheduler(app.bot)
+    # Inicia a tarefa paralela de mensagens programadas
+    asyncio.create_task(scheduled_reminders(app))
 
     print("Clarinha24hBot is running...")
     await app.run_polling()
 
+# Rodar main corretamente no Railway
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.get_event_loop().run_until_complete(main())
