@@ -6,7 +6,7 @@ import os
 from datetime import datetime
 
 # Token do Bot vindo da variável de ambiente ou fallback direto
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8186316328:AAHnv7iaIv78mVLZszjPbvuv4eB-nkBMVa4")  # Substitua se quiser
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8186316328:AAGb_E5Iow3TubvlFzvUBEcRXx2MFEPRnVg")  # Substitua se quiser
 
 # Frases principais que Clarinha usa ao longo da conversa
 clarinha_messages = [
